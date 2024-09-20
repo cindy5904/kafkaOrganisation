@@ -14,7 +14,7 @@ public class OrganisationEventConsumer {
     OrganisationService organisationService;
 
     @Incoming("employee-events")
-    @Blocking
+
     public void consumeEmployeeEvent(String event) {
         String[] parts = event.split(",");
         String eventType = parts[0];

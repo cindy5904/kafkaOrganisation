@@ -3,6 +3,11 @@ package org.example.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.example.client.DepartementClient;
+import org.example.client.OrganisationClient;
+import org.example.dto.DepartementDto;
+import org.example.dto.OrganisationDto;
 import org.example.entity.Employee;
 import org.example.kafka.EmployeeEventProducer;
 import org.example.repository.EmployeeRepository;
@@ -14,6 +19,16 @@ public class EmployeeService {
     EmployeeRepository employeeRepository;
     @Inject
     EmployeeEventProducer employeeEventProducer;
+    @Inject
+    @RestClient
+    OrganisationClient organisationClient;
+    @Inject
+    @RestClient
+    DepartementClient departementClient;
+
+    public OrganisationDto getOrganisation(Long organisationId) {
+        return organisationClient.getOrganisationById(organisationId);
+    }
 
     public List<Employee> getEmployeesByOrganisation(Long organisationId) {
         return employeeRepository.findByOrganisationId(organisationId);
@@ -46,8 +61,24 @@ public class EmployeeService {
 
     @Transactional
     public Employee createEmployee(Employee employee) {
+        OrganisationDto organisationDto = organisationClient.getOrganisationById(employee.getOrganisationId());
+        if (organisationDto == null) {
+            throw new IllegalArgumentException("Organisation non trouvée");
+        }
+
+        if (employee.getDepartmentId() != null) {
+            DepartementDto departementDto = departementClient.getDepartementById(employee.getDepartmentId());
+            if (departementDto == null) {
+                employee.setDepartmentless(true);
+            }
+        } else {
+            employee.setDepartmentless(true);
+        }
+
         employeeRepository.persist(employee);
+
         employeeEventProducer.publishEmployeeAdded(employee.getOrganisationId());
+
         return employee;
     }
 
